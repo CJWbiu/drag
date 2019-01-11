@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.js"></script>
+  <link rel="stylesheet" href="./main.css">
+</head>
+<body>
+  <div class="aside" id="aside">
+    <div draggable="true"  class="drag_item" data-type="text">单行文本</div>
+    <div draggable="true"  class="drag_item" data-type="number">数字</div>
+    <div draggable="true"  class="drag_item" data-type="time">时间</div>
+  </div>
+  <div class="container" id="container"></div>
+  <div class="setting" id="set">
+    <input id="setTitle" value="单行文本">
+    <div>X : <input id="setX" type="text"></div>
+    <div>Y : <input id="setY" type="text"></div>
+  </div>
+<script src="./main.js"></script>
+<script>
+//mock
+var fields = [
+  {
+    x: 250,
+    y: 0,
+    type: 'text',
+    text: '姓名'
+  },
+  {
+    x: 300,
+    y: 50,
+    type: 'number',
+    text: '座位号'
+  },
+  {
+    x: 200,
+    y: 100,
+    type: 'time',
+    text: '开始时间'
+  },
+  {
+    x: 150,
+    y: 0,
+    type: 'text',
+    text: '姓名'
+  },
+  {
+    x: 300,
+    y: 80,
+    type: 'number',
+    text: '座位号'
+  },
+  {
+    x: 125,
+    y: 400,
+    type: 'time',
+    text: '开始时间'
+  }
+];
+
+$(function() {
+  var $wrap = $('#container'), $title = $('#setTitle'), $x = $('#setX'), $y = $('#setY');
+  var ghosts = {}; 
+  var mOffsetX = 0, //鼠标在元素上位置
+      mOffsetY = 0,
+      activeGhost = null,  //当前点击的ghost
+      offsetX = 0, //鼠标在拖拽元素上的x轴
+      offsetY = 0, //鼠标在拖拽元素上的y轴
+      currentG;  //当前拖拽元素
+
+  //初始化ghost
+  fields.forEach(function(field) {
+    var ghost = createGhost(field, $wrap);
+    ghosts[ghost.id] = ghost;
+  })
+
+  //拖拽开始
+  $('#aside').on('dragstart', function(event) {
+    currentG = $(event.target);
+    var position = currentG.offset();
+    //鼠标在点击元素上的位置
+    offsetX = event.pageX - position.left;
+    offsetY = event.pageY - position.top;
+  });
+  //阻止默认事件，允许被放置
+  $wrap.on('dragover', function(event) {
+    event.preventDefault();
+  })
+  //放入元素
+  $wrap.on('drop', function(event) {
+    event.preventDefault();
+    var target = $(event.target);
+    var tX = target.offset().left,
+        tY = target.offset().top;
+    //获取ghost在容器中的位置
+    var left = event.pageX - tX - offsetX,
+        top = event.pageY - tY - offsetY;
+    //ghost数据
+    var data = {
+      x: left,
+      y: top,
+      type: currentG.data('type'),
+      text: currentG.text()
+    };
+    var ghost = createGhost(data, $wrap);
+    ghosts[ghost.id] = ghost;
+  });
+
+  $wrap.on('mousedown', function(e) {
+    var target = $(e.target);
+    if(target.attr('id') && target.attr('id').indexOf('ghost') >= 0) {
+      //获取当前ghost
+      var id = target.attr('id');
+      activeGhost = ghosts[id];
+      //鼠标在元素上位置
+      mOffsetX = e.pageX - $wrap.offset().left - parseInt(activeGhost.$el.css('left')),
+      mOffsetY = e.pageY - $wrap.offset().top - parseInt(activeGhost.$el.css('top'));
+      activeGhost.lock = false;
+    }
+  })
+  $wrap.on('mousemove', function(e) {
+  //如果当前点击了ghost才执行
+  if(activeGhost) {
+    var target = $(e.target);
+    if(!activeGhost.lock) {
+      var targetPosition = activeGhost.target.offset();
+      //鼠标在wrap中的位置
+      var mX = e.pageX - $wrap.offset().left,
+          mY = e.pageY - $wrap.offset().top;
+      //确定ghost定位
+      var x = Math.min($wrap.width() - activeGhost.$el.width(), Math.max(mX - mOffsetX, 0)),
+          y = Math.min($wrap.height() - activeGhost.$el.height(), Math.max(mY - mOffsetY, 0));
+          
+        activeGhost.moveTo(x, y);
+      }
+    }
+  })
+  $wrap.on('mouseleave', function(e) {
+    if(activeGhost) {
+      resetGhost();
+    }
+  })
+  $wrap.on('mouseup', function(e) {
+    if(activeGhost) {
+      resetGhost();
+    }
+  })
+  function resetGhost() {
+    activeGhost.lock = true;
+    activeGhost = null;
+  }
+  function createGhost(field, $wrap) {
+    return new Ghost(field, $wrap, {
+      onClick: function(data) {
+        $title.val(data.text);
+        $x.val(data.x);
+        $y.val(data.y);
+      },
+      onDelete: function(id) {
+        delete ghosts[id];
+        $('#' + id).remove();
+      }
+    });
+  }
+})
+</script>
+</body>
+</html>
